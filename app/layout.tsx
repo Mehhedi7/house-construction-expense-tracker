@@ -1,8 +1,16 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
-export const metadata = {
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
   title: 'House Construction Expense Tracker',
-  description: 'Track construction expenses with Supabase',
+  description: 'Manage and track house construction expenses by category in Bangladeshi Taka',
 };
 
 export default function RootLayout({
@@ -11,10 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full bg-gray-50">
-      <head />
-      <body className="h-full flex flex-col items-center justify-start p-4">
-        <h1 className="text-3xl font-bold mb-6">🏠 Expense Tracker</h1>
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-screen bg-[#f8f9fa] text-[#212121] antialiased selection:bg-emerald-100 selection:text-emerald-900">
         {children}
       </body>
     </html>
