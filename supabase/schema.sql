@@ -6,7 +6,19 @@
 -- 1. Enable pgcrypto extension for UUID generation
 create extension if not exists "pgcrypto";
 
--- 2. Create the expenses table if it does not exist
+-- 2. Create the categories table if it does not exist
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  icon text not null default '📦',
+  created_at timestamp with time zone default now()
+);
+
+-- Safely ensure user_id in categories is nullable (to allow system-wide preset categories where user_id is NULL)
+alter table public.categories alter column user_id drop not null;
+
+-- 3. Create the expenses table if it does not exist
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null default auth.uid(),
@@ -17,7 +29,7 @@ create table if not exists public.expenses (
   created_at timestamp with time zone default now()
 );
 
--- Safely add missing columns and adjust constraints if table previously existed
+-- Safely add missing columns and adjust constraints if table previously existed from starter template
 do $$
 begin
   -- Ensure user_id column exists
@@ -27,7 +39,7 @@ begin
 
   -- Ensure amount column exists
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'amount') then
-    alter table public.expenses add column amount numeric not null default 0 check (amount > 0);
+    alter table public.expenses add column amount numeric not null default 1 check (amount > 0);
   end if;
 
   -- Ensure category column exists
@@ -50,27 +62,23 @@ begin
     alter table public.expenses add column created_at timestamp with time zone default now();
   end if;
 
-  -- If legacy 'title' column exists from the starter app, make it nullable so it won't block inserts
+  -- If legacy 'category_id' column exists from starter app, make it nullable so it won't block inserts
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'category_id') then
+    alter table public.expenses alter column category_id drop not null;
+  end if;
+
+  -- If legacy 'title' column exists from starter app, make it nullable
   if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'title') then
     alter table public.expenses alter column title drop not null;
   end if;
 
-  -- If legacy 'category_id' column exists, make it nullable
-  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'category_id') then
-    alter table public.expenses alter column category_id drop not null;
+  -- If legacy 'vendor' column exists from starter app, make it nullable
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'vendor') then
+    alter table public.expenses alter column vendor drop not null;
   end if;
 end $$;
 
--- 3. Create the categories table if it does not exist
-create table if not exists public.categories (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
-  name text not null,
-  icon text not null default '📦',
-  created_at timestamp with time zone default now()
-);
-
--- 4. Enable Row Level Security (RLS)
+-- 4. Enable Row Level Security (RLS) on all tables
 alter table public.expenses enable row level security;
 alter table public.categories enable row level security;
 
@@ -81,11 +89,12 @@ drop policy if exists "allow update own expenses" on public.expenses;
 drop policy if exists "allow delete own expenses" on public.expenses;
 
 drop policy if exists "allow select categories" on public.categories;
+drop policy if exists "allow select own categories" on public.categories;
 drop policy if exists "allow insert own categories" on public.categories;
 drop policy if exists "allow update own categories" on public.categories;
 drop policy if exists "allow delete own categories" on public.categories;
 
--- RLS Policies for expenses: Users can only see, create, update, and delete their own rows
+-- RLS Policies for expenses: Each user must only see, insert, update, and delete their own expenses
 create policy "allow select own expenses"
   on public.expenses for select
   using (auth.uid() = user_id);

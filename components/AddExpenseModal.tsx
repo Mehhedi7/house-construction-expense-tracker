@@ -40,16 +40,17 @@ export default function AddExpenseModal({
         setNote(initialData.note || '');
       } else {
         setAmount('');
-        setCategory(PRESET_CATEGORIES[3]?.name || PRESET_CATEGORIES[0].name); // 'Bricks & Masonry' default or first
+        setCategory(PRESET_CATEGORIES[0].name);
         setDate(new Date().toISOString().split('T')[0]);
         setNote('');
       }
       setErrorMsg('');
 
       // Auto-focus amount input on desktop/modal open
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         amountInputRef.current?.focus();
-      }, 100);
+      }, 80);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialData]);
 
@@ -101,17 +102,17 @@ export default function AddExpenseModal({
         className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 animate-slide-up sm:animate-scale-up max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Mobile drag handle bar */}
+        {/* Mobile bottom sheet drag handle indicator */}
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-[#212121]">
-              {initialData ? 'Edit Expense' : 'Add Construction Expense'}
+              {initialData ? 'Edit Expense' : 'Add Expense'}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {initialData ? 'Update expense details' : 'Enter the expense amount and category'}
+              {initialData ? 'Update your expense details' : 'Record a new construction cost'}
             </p>
           </div>
           <button
@@ -147,6 +148,7 @@ export default function AddExpenseModal({
               </div>
               <input
                 ref={amountInputRef}
+                autoFocus
                 type="number"
                 step="any"
                 min="0.01"
@@ -173,7 +175,7 @@ export default function AddExpenseModal({
               >
                 {PRESET_CATEGORIES.map((cat) => (
                   <option key={cat.name} value={cat.name}>
-                    {cat.icon} {cat.name}
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -213,7 +215,7 @@ export default function AddExpenseModal({
             />
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons: Save and Cancel */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
@@ -234,7 +236,7 @@ export default function AddExpenseModal({
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>{initialData ? 'Update Expense' : 'Save Expense'}</span>
+                <span>Save</span>
               )}
             </button>
           </div>

@@ -18,7 +18,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.replace('/');
+        router.replace('/dashboard');
       } else {
         setCheckingSession(false);
       }
@@ -28,7 +28,7 @@ export default function LoginPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        router.replace('/');
+        router.replace('/dashboard');
       }
     });
 
@@ -46,7 +46,7 @@ export default function LoginPage() {
     try {
       if (!isSupabaseConfigured) {
         throw new Error(
-          'Supabase environment variables are missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project.'
+          'Supabase environment variables are missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your Vercel project settings.'
         );
       }
 
@@ -58,11 +58,21 @@ export default function LoginPage() {
         if (error) throw error;
 
         if (data.session) {
-          router.replace('/');
+          router.replace('/dashboard');
         } else if (data.user) {
-          setInfoMsg(
-            'Account created successfully! If email confirmation is enabled on your Supabase project, check your inbox to confirm your account before logging in.'
-          );
+          // If Supabase auto-confirmed or disabled email confirm, try immediate sign in
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+
+          if (signInData?.session) {
+            router.replace('/dashboard');
+          } else {
+            setInfoMsg(
+              'Account created successfully! If email confirmation is required, please check your inbox to confirm your account before logging in.'
+            );
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -72,11 +82,11 @@ export default function LoginPage() {
         if (error) throw error;
 
         if (data.session) {
-          router.replace('/');
+          router.replace('/dashboard');
         }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Authentication failed. Please verify your details.');
+      setErrorMsg(err.message || 'Authentication failed. Please verify your email and password.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +105,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] flex flex-col justify-center items-center px-4 py-8">
-      {/* Missing configuration notice */}
+      {/* Missing configuration notice banner */}
       {!isSupabaseConfigured && (
         <div className="w-full max-w-md mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
           <p className="font-semibold mb-1">⚙️ Supabase credentials not configured</p>
@@ -183,7 +193,7 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>{isSignUp ? 'Creating account...' : 'Logging in...'}</span>
+                <span>{isSignUp ? 'Signing up...' : 'Logging in...'}</span>
               </>
             ) : (
               <span>{isSignUp ? 'Sign up' : 'Log in'}</span>
@@ -194,35 +204,29 @@ export default function LoginPage() {
         {/* Toggle between Login and Sign Up */}
         <div className="mt-6 pt-6 border-t border-gray-100 text-center">
           {isSignUp ? (
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(false);
-                  setErrorMsg('');
-                  setInfoMsg('');
-                }}
-                className="font-semibold text-[#166534] hover:underline focus:outline-none cursor-pointer"
-              >
-                Log in
-              </button>
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(false);
+                setErrorMsg('');
+                setInfoMsg('');
+              }}
+              className="text-sm text-gray-600 hover:text-[#166534] transition focus:outline-none cursor-pointer"
+            >
+              Already have an account? <span className="font-semibold text-[#166534] underline">Log in</span>
+            </button>
           ) : (
-            <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(true);
-                  setErrorMsg('');
-                  setInfoMsg('');
-                }}
-                className="font-semibold text-[#166534] hover:underline focus:outline-none cursor-pointer"
-              >
-                Sign up
-              </button>
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(true);
+                setErrorMsg('');
+                setInfoMsg('');
+              }}
+              className="text-sm text-gray-600 hover:text-[#166534] transition focus:outline-none cursor-pointer"
+            >
+              Don&apos;t have an account? <span className="font-semibold text-[#166534] underline">Sign up</span>
+            </button>
           )}
         </div>
       </div>
