@@ -77,7 +77,12 @@ begin
   end if;
 end $$;
 
--- 4. Enable Row Level Security (RLS) on all tables
+-- 4. Create covering indexes for foreign keys and queries
+create index if not exists idx_categories_user_id on public.categories (user_id);
+create index if not exists idx_expenses_user_id on public.expenses (user_id);
+create index if not exists idx_expenses_user_id_date on public.expenses (user_id, date desc);
+
+-- 5. Enable Row Level Security (RLS) on all tables
 alter table public.expenses enable row level security;
 alter table public.categories enable row level security;
 
@@ -96,38 +101,48 @@ drop policy if exists "allow delete own categories" on public.categories;
 -- RLS Policies for expenses: Each user must only see, insert, update, and delete their own expenses
 create policy "allow select own expenses"
   on public.expenses for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 create policy "allow insert own expenses"
   on public.expenses for insert
-  with check (auth.uid() = user_id);
+  to authenticated
+  with check ((select auth.uid()) = user_id);
 
 create policy "allow update own expenses"
   on public.expenses for update
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 create policy "allow delete own expenses"
   on public.expenses for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- RLS Policies for categories: Users can see system presets (user_id is null) or their own custom categories
 create policy "allow select categories"
   on public.categories for select
-  using (user_id is null or auth.uid() = user_id);
+  to authenticated, anon
+  using (user_id is null or (select auth.uid()) = user_id);
 
 create policy "allow insert own categories"
   on public.categories for insert
-  with check (auth.uid() = user_id);
+  to authenticated
+  with check ((select auth.uid()) = user_id);
 
 create policy "allow update own categories"
   on public.categories for update
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 create policy "allow delete own categories"
   on public.categories for delete
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
--- 5. Seed Preset Categories (where user_id is NULL for global access)
+-- 6. Seed Preset Categories (where user_id is NULL for global access)
 insert into public.categories (name, icon, user_id)
 select c.name, c.icon, null
 from (values
